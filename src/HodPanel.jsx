@@ -10,7 +10,8 @@ const HodPanel = () => {
   const fetchPending = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:3001/api/outpass/pending');
+      // FIXED: Swapped localhost for the live Render URL
+      const response = await axios.get('https://outpass-backend-7ssu.onrender.com/api/outpass/pending');
       if (response.data.success) {
         setPendingRequests(response.data.data);
       }
@@ -30,8 +31,7 @@ const HodPanel = () => {
   // Approves a specific outpass when the button in the table is clicked
   const handleApprove = async (id, studentName) => {
     try {
-     // Change whatever URL is inside the put() to this exact link:
-const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/approve/${id}`);
+      const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/approve/${id}`);
       if (response.data.success) {
         setMessage(`✅ Approved outpass for ${studentName}`);
         // Refresh the list so the approved student disappears from the pending table
