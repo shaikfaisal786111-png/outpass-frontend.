@@ -30,7 +30,8 @@ const HodPanel = () => {
   // Approves a specific outpass when the button in the table is clicked
   const handleApprove = async (id, studentName) => {
     try {
-      const response = await axios.put(`https://outpass-backend-7ssu.onrender.com`);
+     // Change whatever URL is inside the put() to this exact link:
+const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/approve/${id}`);
       if (response.data.success) {
         setMessage(`✅ Approved outpass for ${studentName}`);
         // Refresh the list so the approved student disappears from the pending table
