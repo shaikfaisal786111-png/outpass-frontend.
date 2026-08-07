@@ -35,7 +35,8 @@ const StudentPortal = () => {
     }
 
     try {
-      const response = await axios.post('https://outpass-backend-7ssu.onrender.com', formData);
+      // Updated endpoint URL with route path appended
+      const response = await axios.post('https://outpass-backend-7ssu.onrender.com/api/outpass', formData);
       
       if (response.data.success) {
         setStatusMessage('✅ Request successfully submitted to HOD!');
