@@ -1,0 +1,52 @@
+/* src/App.css */
+
+/* Default Desktop Styles */
+.navbar {
+  background-color: #1a237e;
+  color: white;
+  padding: 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-links {
+  display: flex;
+  gap: 10px;
+}
+
+.nav-button {
+  padding: 10px 20px;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  font-size: 16px;
+}
+
+/* Mobile Styles (Activates when screen is smaller than 600px) */
+@media (max-width: 600px) {
+  .navbar {
+    flex-direction: column; /* Stacks the logo and buttons vertically */
+    padding: 15px;
+    gap: 15px;
+  }
+  
+  .nav-links {
+    flex-direction: column; /* Stacks the buttons on top of each other */
+    width: 100%;
+  }
+
+  .nav-button {
+    width: 100%; /* Makes buttons full-width for easy thumb tapping */
+    padding: 12px;
+  }
+}
