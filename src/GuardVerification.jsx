@@ -13,8 +13,8 @@ const GuardVerification = () => {
     setScanResult(idToVerify);
 
     try {
-     // Note: Your variable at the end might be named something like ${scannedData} or ${id} depending on your code. Use whatever variable holds the QR string!
-const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/verify/${id}`);
+      // FIXED: Changed ${id} to ${idToVerify} to match the function parameter
+      const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/verify/${idToVerify}`);
       
       if (response.data.success) {
         setStatusMessage('✅ VALID\n' + response.data.message);
