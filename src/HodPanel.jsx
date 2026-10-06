@@ -1,99 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-const HodPanel = () => {
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  // This function reaches out to our new backend route
-  const fetchPending = async () => {
-    try {
-      setLoading(true);
-      // FIXED: Swapped localhost for the live Render URL
-      const response = await axios.get('https://outpass-backend-7ssu.onrender.com/api/outpass/pending');
-      if (response.data.success) {
-        setPendingRequests(response.data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setMessage("❌ Failed to load pending requests.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // useEffect runs the fetch function automatically as soon as the page loads
-  useEffect(() => {
-    fetchPending();
-  }, []);
-
-  // Approves a specific outpass when the button in the table is clicked
-  const handleApprove = async (id, studentName) => {
-    try {
-      const response = await axios.put(`https://outpass-backend-7ssu.onrender.com/api/outpass/approve/${id}`);
-      if (response.data.success) {
-        setMessage(`✅ Approved outpass for ${studentName}`);
-        // Refresh the list so the approved student disappears from the pending table
-        fetchPending();
-      }
-    } catch (error) {
-      setMessage(`❌ Error approving ${studentName}'s outpass.`);
-    }
-    
-    // Clear the message after 3 seconds
-    setTimeout(() => setMessage(''), 3000);
-  };
-
-  return (
-    <div style={{ border: '1px solid #333', padding: '20px', borderRadius: '8px' }}>
-      <h2>HOD Approval Dashboard</h2>
-      
-      {message && (
-        <div style={{ marginBottom: '15px', padding: '10px', borderRadius: '4px', backgroundColor: message.includes('✅') ? '#d4edda' : '#f8d7da', color: message.includes('✅') ? '#155724' : '#721c24' }}>
-          {message}
-        </div>
-      )}
-
-      {loading ? (
-        <p>Loading requests...</p>
-      ) : pendingRequests.length === 0 ? (
-        <div style={{ padding: '20px', backgroundColor: '#f8f9fa', borderRadius: '4px', textAlign: 'center', color: '#666' }}>
-          <p>No pending outpass requests at this time.</p>
-        </div>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-          <thead>
-            <tr style={{ backgroundColor: '#007BFF', color: 'white', textAlign: 'left' }}>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Name</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Roll No</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Destination</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Reason</th>
-              <th style={{ padding: '12px', border: '1px solid #ddd' }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingRequests.map((req) => (
-              <tr key={req.id} style={{ backgroundColor: '#fff', borderBottom: '1px solid #ddd' }}>
-                <td style={{ padding: '12px', border: '1px solid #ddd', fontWeight: 'bold' }}>{req.name}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{req.rollNo}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{req.destination}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd' }}>{req.reason}</td>
-                <td style={{ padding: '12px', border: '1px solid #ddd', textAlign: 'center' }}>
-                  <button 
-                    onClick={() => handleApprove(req.id, req.name)}
-                    style={{ padding: '8px 12px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                  >
-                    Approve
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-};
-
-export default HodPanel;
+import React, { useCallback, useEffect, useState } from 'react';
+import { api, setToken } from './api';
+const today = new Date().toISOString().slice(0, 7);
+export default function HodPanel() {
+  const [rows, setRows] = useState([]); const [month, setMonth] = useState(today); const [search, setSearch] = useState(''); const [submittedSearch, setSubmittedSearch] = useState(''); const [history, setHistory] = useState(null); const [message, setMessage] = useState('');
+  const load = useCallback(async () => { try { const result = await api.get('/api/hod/outpasses', { params: { month, search: submittedSearch } }); setRows(result.data.data); } catch (error) { setMessage(error.response?.data?.message || 'Could not load requests.'); } }, [month, submittedSearch]);
+  useEffect(() => { load(); }, [load]);
+  const decide = async (id, action) => { const note = action === 'reject' ? window.prompt('Why is this request rejected?') : null; if (action === 'reject' && !note) return; try { await api.put(`/api/hod/outpasses/${id}/${action}`, note ? { note } : {}); setMessage(`Request ${action}ed.`); load(); } catch (error) { setMessage(error.response?.data?.message || 'Action failed.'); } };
+  const viewHistory = async (rollNo) => { try { const result = await api.get(`/api/hod/students/${encodeURIComponent(rollNo)}/history`, { params: { month } }); setHistory(result.data.data); } catch (error) { setMessage(error.response?.data?.message || 'Could not load history.'); } };
+  const pending = rows.filter((row) => row.status === 'PENDING').length;
+  const frequent = rows.filter((row) => row.monthlyRequestCount >= 4).length;
+  return <main className="page"><header className="page-head"><div><p className="eyebrow">Decision workspace</p><h1>HOD dashboard</h1><p>Make confident decisions with each student’s monthly outpass usage in view.</p></div><button className="secondary" onClick={() => { setToken('HOD', null); window.location.reload(); }}>Sign out</button></header><section className="metric-grid"><article className="metric-card"><span>Requests shown</span><strong>{rows.length}</strong><small>For the selected month and filter</small></article><article className="metric-card"><span>Awaiting decision</span><strong>{pending}</strong><small>Requests that need your review</small></article><article className="metric-card warning-card"><span>Usage alerts</span><strong>{frequent}</strong><small>Students at 4 or more requests</small></article></section><section className="toolbar card"><label>Month<input type="month" value={month} onChange={(e) => setMonth(e.target.value)} /></label><label>Find student<input placeholder="Name or roll number" value={search} onChange={(e) => setSearch(e.target.value)} /></label><button onClick={() => search === submittedSearch ? load() : setSubmittedSearch(search)}>Search</button></section>{message && <div className="alert">{message}</div>}<section className="card table-wrap"><div className="table-heading"><div><p className="eyebrow">Request queue</p><h2>Student outpasses</h2></div><span className="muted">Click a roll number for the full history</span></div><table><thead><tr><th>Student</th><th>Journey</th><th>Used this month</th><th>Status</th><th>Decision</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><strong>{row.student.name}</strong><button className="link" onClick={() => viewHistory(row.student.rollNo)}>{row.student.rollNo}</button></td><td>{row.destination}</td><td><span className={row.monthlyRequestCount >= 4 ? 'badge warning' : 'badge'}>{row.monthlyRequestCount} outpass{row.monthlyRequestCount === 1 ? '' : 'es'}</span></td><td><span className="badge">{row.status}</span></td><td>{row.status === 'PENDING' ? <div className="actions"><button onClick={() => decide(row.id, 'approve')}>Approve</button><button className="danger" onClick={() => decide(row.id, 'reject')}>Reject</button></div> : '—'}</td></tr>)}</tbody></table>{!rows.length && <p className="empty">No requests for this filter.</p>}</section>{history && <aside className="drawer"><button className="close" onClick={() => setHistory(null)}>×</button><p className="eyebrow">Student history</p><h2>{history.student.name}</h2><p>{history.student.rollNo} · <strong>{history.monthlyCount}</strong> requests in {history.month}</p>{history.policyWarning && <div className="alert error">Frequency warning: this student reached the configured monthly limit.</div>}<ol>{history.history.map((item) => <li key={item.id}><strong>{item.status}</strong> — {item.destination}<small>{new Date(item.requestedAt).toLocaleString()}</small></li>)}</ol></aside>}</main>;
+}

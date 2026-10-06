@@ -3,55 +3,45 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import StudentPortal from './StudentPortal';
 import HodPanel from './HodPanel';
 import GuardVerification from './GuardVerification';
+import { api, getToken, setToken } from './api';
+import './App.css';
 
 // --- SECURITY WRAPPER COMPONENT ---
 // This acts as a locked door. It only shows the 'children' (the dashboard) if the correct PIN is entered.
-const RequirePin = ({ children, correctPin, roleName }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [pin, setPin] = useState('');
+const RequireRole = ({ children, roleName }) => {
+  const sessionRole = () => { try { return JSON.parse(atob(getToken(roleName)?.split('.')[1]?.replace(/-/g, '+').replace(/_/g, '/'))).role; } catch { return null; } };
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sessionRole() === roleName);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (pin === correctPin) {
+    const sanitizedEmail = email.trim().toLowerCase();
+    const sanitizedPassword = password.trim();
+    setError('');
+    try {
+      const response = await api.post('/api/auth/login', { email: sanitizedEmail, password: sanitizedPassword });
+      if (response.data.user.role !== roleName) throw new Error(`This account is not a ${roleName} account.`);
+      setToken(roleName, response.data.token);
       setIsAuthenticated(true);
-    } else {
-      setError('❌ Incorrect PIN. Access Denied.');
-      setPin('');
-    }
+    } catch (err) { setError(err.response?.data?.message || err.message || 'Unable to sign in.'); }
   };
 
-  if (isAuthenticated) {
+  if (isAuthenticated && sessionRole() === roleName) {
     return children;
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', textAlign: 'center', maxWidth: '350px', width: '100%' }}>
-        
-        {/* Lock Icon and Header */}
-        <div style={{ backgroundColor: '#1f2937', color: 'white', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', letterSpacing: '1px' }}>🔒 {roleName} PORTAL</h2>
-        </div>
-        
-        {error && <p style={{ color: '#dc2626', fontSize: '14px', marginBottom: '15px', fontWeight: 'bold' }}>{error}</p>}
-        
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <input 
-            type="password" 
-            placeholder="Enter PIN" 
-            value={pin} 
-            onChange={(e) => { setPin(e.target.value); setError(''); }}
-            style={{ padding: '15px', borderRadius: '8px', border: '2px solid #d1d5db', fontSize: '20px', textAlign: 'center', letterSpacing: '5px', outline: 'none' }}
-            autoFocus
-          />
-          <button type="submit" style={{ padding: '14px', backgroundColor: '#4f46e5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px', transition: 'background-color 0.2s' }}>
-            Unlock Dashboard
-          </button>
+    <main className="auth-page"><section className="auth-card">
+      <p className="eyebrow">Azura Smart Outpass</p><h1>{roleName} sign in</h1><p>Use the account configured in the secure backend environment.</p>
+      {error && <div className="alert error">{error}</div>}
+      <form onSubmit={handleLogin} className="form-stack">
+          <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus autoCapitalize="none" autoCorrect="off" spellCheck="false" /></label>
+          <label>Password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoCapitalize="none" autoCorrect="off" spellCheck="false" /></label>
+          <button type="submit">Sign in securely</button>
         </form>
-        <p style={{ marginTop: '20px', fontSize: '12px', color: '#9ca3af' }}>AZURA Smart Outpass System</p>
-      </div>
-    </div>
+    </section></main>
   );
 };
 
@@ -59,33 +49,22 @@ const RequirePin = ({ children, correctPin, roleName }) => {
 const App = () => {
   return (
     <BrowserRouter>
-      {/* Notice: The open navigation bar has been completely removed! */}
-      <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
+      <div className="app-shell">
         <Routes>
           
           {/* PUBLIC ROUTE: Student Portal (No PIN required) */}
           <Route path="/" element={
-            <div style={{ padding: '20px' }}>
-              <StudentPortal />
-            </div>
+            <StudentPortal />
           } />
           
           {/* PROTECTED ROUTE: HOD Dashboard */}
           <Route path="/hod" element={
-            <RequirePin correctPin="1234" roleName="HOD">
-              <div style={{ padding: '20px' }}>
-                <HodPanel />
-              </div>
-            </RequirePin>
+            <RequireRole roleName="HOD"><HodPanel /></RequireRole>
           } />
 
           {/* PROTECTED ROUTE: Guard Verification */}
           <Route path="/guard" element={
-            <RequirePin correctPin="5678" roleName="SECURITY">
-              <div style={{ padding: '20px' }}>
-                <GuardVerification />
-              </div>
-            </RequirePin>
+            <RequireRole roleName="GUARD"><GuardVerification /></RequireRole>
           } />
 
         </Routes>
